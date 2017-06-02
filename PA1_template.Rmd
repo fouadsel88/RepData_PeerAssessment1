@@ -1,25 +1,144 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Here i install ggplot2 and dplyr pakages
+```{r,echo=TRUE}
+library(ggplot2)
+library(dplyr)
+```
+
+reading the dataset
+```{r,echo=TRUE}
+Activity<- read.csv("activity.csv")
+```
+```{r,echo=TRUE}
+head(Activity)
+```
+here's a summary of the dataset
+```{r,echo=TRUE}
+summary(Activity)
+str(Activity)
+```
+here i convert date column to date format
+```{r,echo=TRUE}
+Activity$date<- as.Date(as.character(  x = Activity$date , "%Y/%M/%d"))
+```
+
+next i will make histagaram shows the number of steps each day i will first groupe the data by day
+```{r,echo=TRUE}
+sumsteps<- Activity %>%
+  group_by(day = date)%>%
+  summarise(steps= sum(steps))
+head(sumsteps)
+```
+
+This is the histagram of the total number of steps each day
+
+```{r,echo=TRUE}
+
+ggplot(data = sumsteps, aes(steps))+geom_histogram(binwidth = 1800,aes(fill= ..count..))+ 
+  ggtitle("Totla number of steps taken each day")
+```
 
 
-## Loading and preprocessing the data
+This is the Mean and median number of steps taken each day.
+```{r,echo=TRUE}
+mean(sumsteps$steps,na.rm = TRUE)
+median(sumsteps$steps,na.rm = T)
+```
+
+Her's The Time series plot of the average number of steps taken
+
+By day
+```{r,echo=TRUE}
+meanS<- Activity %>%
+  filter(!(is.na(steps))) %>%
+  group_by(Days = date)%>%
+  summarise(meanSteps= mean(steps))
+ggplot(data = meanS, aes(x=Days,y=meanSteps))+geom_line(col="blue")+ggtitle("The average of steps taken by day")
+
+```
+
+By 5 minute interval
+```{r,echo=TRUE}
+meanS<- Activity %>%
+  filter(!(is.na(steps))) %>%
+  group_by(Inv = interval)%>%
+  summarise(meanSteps= mean(steps)) 
+ggplot(data = meanS, aes(x=Inv,y=meanSteps))+geom_line(col="red")+
+  ggtitle("The average of steps taken by Interval")+
+  xlab("5 minutes interval")+
+  ylab("Average of steps")
+```
+
+This is the  5-minute interval that, on average, contains the maximum number of steps
+```{r,echo=TRUE}
+aveInterval<- Activity %>%
+  group_by(interval)%>%
+  summarise(aveIn=mean(steps,na.rm=T))
+aveInterval$interval[aveInterval$aveIn== max(aveInterval$aveIn,na.rm = T)]
+```
+
+Code to describe and show a strategy for imputing missing data
+first we need to se the percentage of the missing data in our dataset.
+```{r,echo=TRUE}
+sum(is.na(Activity$steps))/length(Activity$steps)
+```
+so  we have 13% missig data in our dataset
+Now i will  calclute the the average of steps taken by 5 minutes interval and i will assign the result to the missig values who have the same interval. 
+```{r,echo=TRUE}
+for( index in 1:length(Activity$steps) ){
+   if (is.na(Activity$steps[index])){
+     x<- aveInterval$aveIn[aveInterval$interval==Activity$interval[index]]
+     Activity$steps[index]<- x
+     
+   }
+}
+```
+
+now we have 0% missig values.
+```{r,echo=TRUE}
+sum(is.na(Activity$steps))/length(Activity$steps)
+```
+
+Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r,echo=TRUE}
+sumsteps<- Activity %>%
+  group_by(day = date)%>%
+  summarise(steps= sum(steps))
+head(sumsteps)
+```
 
 
 
-## What is mean total number of steps taken per day?
+```{r,echo=TRUE}
+
+ggplot(data = sumsteps, aes(steps))+geom_histogram(binwidth = 1800,aes(fill= ..count..))+ 
+  ggtitle("Totla number of steps taken each day after missing value are imputed")
+```
+
+Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+first i will subset only weekends data
+
+```{r,echo=TRUE}
+unique(weekdays(Activity$date))
+weekend<- Activity [weekdays(Activity$date) %in% c("Saturday","Sunday"),]
+```
+here's the weekends day i subset from the data.
+```{r,echo=TRUE}
+weekdays(unique(weekend$date))
+```
+now i will plot the average steps taken by 5 minutes interval in weekends and weekdays
+```{r,echo=TRUE}
+meanSw<- Activity %>%
+  group_by(Inv = interval, week=weekdays(Activity$date) %in% c("Saturday","Sunday"))%>%
+  summarise(meanSteps= mean(steps)) 
+meanSw$week<-as.character( meanSw$week)
+meanSw$week[meanSw$week=="TRUE"]<- "weekend"
+meanSw$week[meanSw$week=="FALSE"]<- "weekday"
+ggplot(data = meanSw, aes(x=Inv,y=meanSteps))+facet_grid(.~week)+  geom_line(col="red")+
+  ggtitle("The average of steps taken by Interval weekday VS weeken")+
+  xlab("Interval")+
+  ylab(" Steps")
+```
 
 
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+the plots show that in the weekday most of  steps taken started in the beginning of the day and in weekend the steps taken are almost the same during the day between 25 and 160 steps and continue with same level untel late night.
